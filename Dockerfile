@@ -24,7 +24,9 @@
 FROM node:18.19.1-bookworm-slim AS frontend-build
 WORKDIR /code
 SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]
+ARG RAILWAY_SERVICE_ID
 
+RUN echo ${RAILWAY_SERVICE_ID}
 COPY turbo.json package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 COPY frontend/package.json frontend/
 COPY frontend/bin/ frontend/bin/
