@@ -257,11 +257,7 @@ ENV NODE_ENV=production \
     CHROME_PATH=/usr/lib/chromium/ \
     CHROMEDRIVER_BIN=/usr/bin/chromedriver
 
-# Expose container port and run entry point script.
-EXPOSE 8000
 
-# Expose the port from which we serve OpenMetrics data.
-EXPOSE 8001
 COPY unit.json.tpl /docker-entrypoint.d/unit.json.tpl
 USER root
 CMD ["./bin/docker"]
