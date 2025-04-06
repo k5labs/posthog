@@ -4,7 +4,7 @@
 # PostHog has sunset support for self-hosted K8s deployments.
 # See: https://posthog.com/blog/sunsetting-helm-support-posthog
 #
-# Note: for PostHog Cloud remember to update 'Dockerfile.cloud' as appropriate.
+# Note: for PostHog Cloud remember to update ‘Dockerfile.cloud’ as appropriate.
 #
 # The stages are used to:
 #
@@ -36,8 +36,9 @@ COPY common/eslint_rules/ common/eslint_rules/
 COPY common/tailwind/ common/tailwind/
 COPY products/ products/
 COPY ee/frontend/ ee/frontend/
-RUN corepack enable && pnpm --version && \
-    pnpm --filter=@posthog/frontend... install --frozen-lockfile
+RUN --mount=type=cache,id=${RAILWAY_SERVICE_ID}-pnpm,target=/tmp/pnpm-store \
+    corepack enable && pnpm --version && \
+    pnpm --filter=@posthog/frontend... install --frozen-lockfile --store-dir /tmp/pnpm-store
 
 COPY frontend/ frontend/
 RUN bin/turbo --filter=@posthog/frontend build
@@ -75,9 +76,10 @@ SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]
 
 # Compile and install Node.js dependencies.
 # NOTE: we don't actually use the plugin-transpiler with the plugin-server, it's just here for the build.
-RUN corepack enable && \
-    NODE_OPTIONS="--max-old-space-size=16384" pnpm --filter=@posthog/plugin-server... install --frozen-lockfile && \
-    NODE_OPTIONS="--max-old-space-size=16384" pnpm --filter=@posthog/plugin-transpiler... install --frozen-lockfile && \
+RUN --mount=type=cache,id=${RAILWAY_SERVICE_ID}-pnpm,target=/tmp/pnpm-store \
+    corepack enable && \
+    NODE_OPTIONS="--max-old-space-size=16384" pnpm --filter=@posthog/plugin-server... install --frozen-lockfile --store-dir /tmp/pnpm-store && \
+    NODE_OPTIONS="--max-old-space-size=16384" pnpm --filter=@posthog/plugin-transpiler... install --frozen-lockfile --store-dir /tmp/pnpm-store && \
     NODE_OPTIONS="--max-old-space-size=16384" bin/turbo --filter=@posthog/plugin-transpiler build
 
 # Build the plugin server.
@@ -95,8 +97,9 @@ RUN NODE_OPTIONS="--max-old-space-size=16384" bin/turbo --filter=@posthog/plugin
 
 # only prod dependencies in the node_module folder
 # as we will copy it to the last image.
-RUN corepack enable && \
-    NODE_OPTIONS="--max-old-space-size=16384" pnpm --filter=@posthog/plugin-server install --frozen-lockfile --prod && \
+RUN --mount=type=cache,id=${RAILWAY_SERVICE_ID}-pnpm,target=/tmp/pnpm-store \
+    corepack enable && \
+    NODE_OPTIONS="--max-old-space-size=16384" pnpm --filter=@posthog/plugin-server install --frozen-lockfile --store-dir /tmp/pnpm-store --prod && \
     NODE_OPTIONS="--max-old-space-size=16384" bin/turbo --filter=@posthog/plugin-server prepare
 
 #
@@ -252,7 +255,11 @@ ENV NODE_ENV=production \
     CHROME_PATH=/usr/lib/chromium/ \
     CHROMEDRIVER_BIN=/usr/bin/chromedriver
 
+# Expose container port and run entry point script.
+EXPOSE 8000
 
+# Expose the port from which we serve OpenMetrics data.
+EXPOSE 8001
 COPY unit.json.tpl /docker-entrypoint.d/unit.json.tpl
 USER root
 CMD ["./bin/docker"]
